@@ -104,12 +104,12 @@ cards.forEach(card => {
     fadeObserver.observe(card);
 });
 
-// Contact form handling
+// Contact form handling with AJAX submission
 const contactForm = document.getElementById('contactForm');
 const submitBtn = document.getElementById('submitBtn');
 
 if (contactForm) {
-    contactForm.addEventListener('submit', (e) => {
+    contactForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         
         // Get form values
@@ -134,13 +134,31 @@ if (contactForm) {
         submitBtn.disabled = true;
         submitBtn.textContent = 'Sending...';
         
-        // Simulate form submission (replace with actual API call)
-        setTimeout(() => {
-            showNotification('Message sent successfully! I\'ll get back to you soon.', 'success');
-            contactForm.reset();
+        // Create form data
+        const formData = new FormData(contactForm);
+        
+        try {
+            // Submit to Formspree
+            const response = await fetch(contactForm.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                showSuccessPopup(name);
+                contactForm.reset();
+            } else {
+                showNotification('Oops! There was a problem sending your message. Please try again.', 'error');
+            }
+        } catch (error) {
+            showNotification('Network error. Please check your connection and try again.', 'error');
+        } finally {
             submitBtn.disabled = false;
             submitBtn.textContent = 'Send Message';
-        }, 2000);
+        }
     });
 }
 
@@ -148,6 +166,59 @@ if (contactForm) {
 function isValidEmail(email) {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
+}
+
+// Success popup function
+function showSuccessPopup(name) {
+    // Remove existing popup if any
+    const existingPopup = document.querySelector('.success-popup-overlay');
+    if (existingPopup) {
+        existingPopup.remove();
+    }
+    
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'success-popup-overlay';
+    
+    // Create popup
+    const popup = document.createElement('div');
+    popup.className = 'success-popup';
+    
+    popup.innerHTML = `
+        <div class="success-icon">
+            <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                <circle cx="40" cy="40" r="38" stroke="#10b981" stroke-width="4" fill="none" class="circle-animation"/>
+                <path d="M25 40 L35 50 L55 30" stroke="#10b981" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" class="check-animation"/>
+            </svg>
+        </div>
+        <h2 class="success-title">Message Sent Successfully!</h2>
+        <p class="success-message">Thank you${name ? ', ' + name : ''}! Your message has been sent. I'll get back to you as soon as possible.</p>
+        <button class="success-btn" onclick="this.closest('.success-popup-overlay').remove()">Close</button>
+    `;
+    
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+    
+    // Trigger animations
+    setTimeout(() => {
+        overlay.classList.add('show');
+    }, 10);
+    
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.classList.remove('show');
+            setTimeout(() => overlay.remove(), 300);
+        }
+    });
+    
+    // Auto close after 5 seconds
+    setTimeout(() => {
+        if (document.body.contains(overlay)) {
+            overlay.classList.remove('show');
+            setTimeout(() => overlay.remove(), 300);
+        }
+    }, 5000);
 }
 
 // Notification system
@@ -193,7 +264,7 @@ function showNotification(message, type) {
     }, 5000);
 }
 
-// Add notification animations
+// Add notification animations and popup styles
 const style = document.createElement('style');
 style.textContent = `
     @keyframes slideIn {
@@ -215,6 +286,145 @@ style.textContent = `
         to {
             transform: translateX(400px);
             opacity: 0;
+        }
+    }
+    
+    .success-popup-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(5px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        padding: 20px;
+    }
+    
+    .success-popup-overlay.show {
+        opacity: 1;
+    }
+    
+    .success-popup {
+        background: white;
+        border-radius: 20px;
+        padding: 40px 30px;
+        max-width: 500px;
+        width: 100%;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        transform: scale(0.8);
+        transition: transform 0.3s ease;
+        animation: popupScale 0.3s ease forwards;
+    }
+    
+    @keyframes popupScale {
+        from {
+            transform: scale(0.8);
+        }
+        to {
+            transform: scale(1);
+        }
+    }
+    
+    .success-icon {
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: center;
+    }
+    
+    .circle-animation {
+        stroke-dasharray: 240;
+        stroke-dashoffset: 240;
+        animation: drawCircle 0.6s ease forwards;
+    }
+    
+    @keyframes drawCircle {
+        to {
+            stroke-dashoffset: 0;
+        }
+    }
+    
+    .check-animation {
+        stroke-dasharray: 50;
+        stroke-dashoffset: 50;
+        animation: drawCheck 0.4s ease 0.4s forwards;
+    }
+    
+    @keyframes drawCheck {
+        to {
+            stroke-dashoffset: 0;
+        }
+    }
+    
+    .success-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 15px;
+    }
+    
+    .success-message {
+        font-size: 16px;
+        color: #64748b;
+        line-height: 1.6;
+        margin-bottom: 30px;
+    }
+    
+    .success-btn {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        color: white;
+        border: none;
+        padding: 12px 40px;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .success-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+    }
+    
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+        .success-popup {
+            background: #1e293b;
+        }
+        
+        .success-title {
+            color: #f1f5f9;
+        }
+        
+        .success-message {
+            color: #94a3b8;
+        }
+    }
+    
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+        .success-popup {
+            padding: 30px 20px;
+        }
+        
+        .success-title {
+            font-size: 24px;
+        }
+        
+        .success-message {
+            font-size: 14px;
+        }
+        
+        .success-icon svg {
+            width: 60px;
+            height: 60px;
         }
     }
 `;
@@ -246,22 +456,24 @@ window.addEventListener('scroll', () => {
 
 // Typing effect for hero subtitle (optional enhancement)
 const heroSubtitle = document.querySelector('.hero-subtitle');
-const text = heroSubtitle.textContent;
-heroSubtitle.textContent = '';
+if (heroSubtitle) {
+    const text = heroSubtitle.textContent;
+    heroSubtitle.textContent = '';
 
-let i = 0;
-function typeWriter() {
-    if (i < text.length) {
-        heroSubtitle.textContent += text.charAt(i);
-        i++;
-        setTimeout(typeWriter, 100);
+    let i = 0;
+    function typeWriter() {
+        if (i < text.length) {
+            heroSubtitle.textContent += text.charAt(i);
+            i++;
+            setTimeout(typeWriter, 100);
+        }
     }
-}
 
-// Start typing effect when page loads
-window.addEventListener('load', () => {
-    setTimeout(typeWriter, 500);
-});
+    // Start typing effect when page loads
+    window.addEventListener('load', () => {
+        setTimeout(typeWriter, 500);
+    });
+}
 
 // Parallax effect for hero section
 window.addEventListener('scroll', () => {
